@@ -32,8 +32,26 @@ export async function requestBrowserNotificationPermission(): Promise<Notificati
 
 import type { NotificationSubscriber } from "@/lib/notification-scope";
 
+async function registerFcmInBackground(subscriber: NotificationSubscriber): Promise<boolean> {
+  try {
+    const { isFcmConfigured, registerFcmToken } = await import("@/lib/fcm");
+    if (!isFcmConfigured()) return false;
+    return Boolean(
+      await registerFcmToken({
+        userId: subscriber.id,
+        role: subscriber.role,
+        garageId: subscriber.garageId,
+      })
+    );
+  } catch (error) {
+    console.warn("[FCM] Token registration failed:", error);
+    return false;
+  }
+}
+
 export async function enableBrowserNotifications(
-  subscriber?: NotificationSubscriber
+  subscriber?: NotificationSubscriber,
+  options?: { awaitPushRegistration?: boolean; pushRegistrationTimeoutMs?: number }
 ): Promise<{
   ok: boolean;
   permission: NotificationPermission;
@@ -45,19 +63,15 @@ export async function enableBrowserNotifications(
 
     let pushRegistered = false;
     if (subscriber) {
-      try {
-        const { isFcmConfigured, registerFcmToken } = await import("@/lib/fcm");
-        if (isFcmConfigured()) {
-          pushRegistered = Boolean(
-            await registerFcmToken({
-              userId: subscriber.id,
-              role: subscriber.role,
-              garageId: subscriber.garageId,
-            })
-          );
-        }
-      } catch (error) {
-        console.warn("[FCM] Token registration failed:", error);
+      const registration = registerFcmInBackground(subscriber);
+      if (options?.awaitPushRegistration) {
+        const timeoutMs = options.pushRegistrationTimeoutMs ?? 10_000;
+        pushRegistered = await Promise.race([
+          registration,
+          new Promise<false>((resolve) => window.setTimeout(() => resolve(false), timeoutMs)),
+        ]);
+      } else {
+        void registration;
       }
     }
 

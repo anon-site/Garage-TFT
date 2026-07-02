@@ -50,20 +50,18 @@ export function NotificationPermissionPrompt() {
     unlockNotificationAudio();
 
     try {
-      const result = await enableBrowserNotifications(
+      await enableBrowserNotifications(
         user ? { id: user.id, role: user.role, garageId: user.garageId } : undefined
       );
-      if (result.permission === "granted") {
-        localStorage.setItem(DISMISS_KEY, "1");
-        setVisible(false);
-      }
     } catch {
       if (Notification.permission === "granted") {
         setBrowserNotificationPreference("enabled");
-        localStorage.setItem(DISMISS_KEY, "1");
-        setVisible(false);
       }
     } finally {
+      if (Notification.permission === "granted" || Notification.permission === "denied") {
+        localStorage.setItem(DISMISS_KEY, "1");
+      }
+      setVisible(shouldShowPrompt());
       setLoading(false);
     }
   }, [user]);

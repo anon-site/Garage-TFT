@@ -40,7 +40,8 @@ export function BrowserNotificationsSection() {
     setLoading(true);
     setMessage(null);
     const result = await enableBrowserNotifications(
-      user ? { id: user.id, role: user.role, garageId: user.garageId } : undefined
+      user ? { id: user.id, role: user.role, garageId: user.garageId } : undefined,
+      { awaitPushRegistration: true }
     );
     setPermission(result.permission);
     setEnabled(result.ok);
